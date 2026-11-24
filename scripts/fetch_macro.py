@@ -5,7 +5,7 @@
         6100 臺灣採購經理人指數（PMI、NMI）
 用法：python scripts/fetch_macro.py
 某一項抓失敗只會記在 errors，不影響其他項目。"""
-import csv, io, json, os, time, datetime as dt, urllib.request
+import csv, zipfile, io, json, os, time, datetime as dt, urllib.request
 
 UA = {"User-Agent": "Mozilla/5.0 (tw-market-data; macro fetch)"}
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "macro")
@@ -66,6 +66,50 @@ def decode(b):
     return b.decode("utf-8", "replace")
 
 
+def parse_csv(b):
+    txt = decode(b).replace("\r\n", "\n").replace("\r", "\n")      # 舊式 \r 換行也能讀
+    return [r for r in csv.reader(io.StringIO(txt, newline="")) if any(c.strip() for c in r)]
+
+
+def zname(n):
+    try:
+        return n.encode("cp437").decode("cp950")                  # zip 內中文檔名
+    except Exception:  # noqa
+        return n
+
+
+def from_zip(b):
+    """zip 內所有 CSV 依第一欄（日期）合併成一張表。"""
+    zf = zipfile.ZipFile(io.BytesIO(b))
+    names = zf.namelist()
+    tabs = []
+    for n in names:
+        if n.lower().endswith(".csv"):
+            rows = parse_csv(zf.read(n))
+            if len(rows) > 1:
+                tabs.append((zname(n), rows))
+    if not tabs:
+        raise ValueError("zip 內沒有 CSV：" + ", ".join(zname(n) for n in names)[:200])
+    header, data, order = [tabs[0][1][0][0]], {}, []
+    for _, rows in tabs:
+        cols = [c.strip() for c in rows[0]]
+        idx = []
+        for i, c in enumerate(cols[1:], 1):
+            if c and c not in header:
+                header.append(c)
+                idx.append((i, c))
+        for r in rows[1:]:
+            k = r[0].strip()
+            if k not in data:
+                data[k] = {}
+                order.append(k)
+            for i, c in idx:
+                if i < len(r):
+                    data[k][c] = r[i]
+    out = [[k] + [data[k].get(c, "") for c in header[1:]] for k in order]
+    return header, out, [{"name": n, "header": rows[0][:30], "rows": len(rows) - 1} for n, rows in tabs]
+
+
 def datagov(ds):
     meta = json.loads(http(f"https://data.gov.tw/api/v2/rest/dataset/{ds}").decode("utf-8"))
     res = meta.get("result", meta)
@@ -76,11 +120,10 @@ def datagov(ds):
     for u in [x for x in urls if x]:
         try:
             b = http(u)
-            if b[:2] == b"PK":                      # zip 檔不是 CSV，跳過
-                errs.append(f"{u[-40:]}: zip")
-                continue
-            txt = decode(b).replace("\r\n", "\n").replace("\r", "\n")   # 舊式 \r 換行也能讀
-            rows = [r for r in csv.reader(io.StringIO(txt, newline="")) if any(c.strip() for c in r)]
+            if b[:2] == b"PK":
+                h, rows, files = from_zip(b)
+                return {"title": res.get("title"), "url": u, "header": h, "rows": rows, "files": files}
+            rows = parse_csv(b)
             if len(rows) > 1:
                 return {"title": res.get("title"), "url": u, "header": rows[0], "rows": rows[1:]}
             errs.append(f"{u[-40:]}: 只有 {len(rows)} 列")
