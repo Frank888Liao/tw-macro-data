@@ -1,0 +1,12 @@
+name: 連線測試（一次性）
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        default: "20261124"
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/probe.py "${{ github.event.inputs.date }}"
