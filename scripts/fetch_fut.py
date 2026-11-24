@@ -39,7 +39,8 @@ def get_csv(path):
             time.sleep(2)
             txt = b.decode("cp950", "replace") if not b.startswith(b"\xef\xbb\xbf") else b.decode("utf-8-sig")
             if txt.lstrip().startswith("<"):
-                return []                      # 查無資料時回傳 HTML
+                print("  ! 期交所回傳網頁而不是 CSV（查無資料或區間太長）：", path[:70])
+                return []
             return [[c.strip() for c in r] for r in csv.reader(io.StringIO(txt)) if r]
         except Exception as e:  # noqa
             err = e
@@ -154,7 +155,8 @@ def build(a, b, prev_settle=None):
     """a～b 的籌碼列與價差列。prev_settle：{(date, month): settle}，給第一天算結算漲跌。"""
     # 多抓前 10 天，第一天才算得出結算漲跌
     a0 = a - dt.timedelta(days=10)
-    TX = fut_daily("TX", a0, b)
+    TX = fut_daily("TX", a0, a - dt.timedelta(days=1))      # 期交所下載一次最多一個月，前 10 天分開抓
+    TX.update(fut_daily("TX", a, b))
     MTX, TMF = fut_daily("MTX", a, b), fut_daily("TMF", a, b)
     IF = {k: insti_fut(k, a, b) for k in ("TXF", "MXF", "TMF")}
     IO, PC, LG, OP = insti_opt(a, b), pcr(a, b), large(a, b), opt_maxoi(a, b)
