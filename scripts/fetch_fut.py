@@ -8,7 +8,7 @@
                    （13:30 對齊價需要盤中逐筆資料，官方日檔沒有，留空）
 
 算法：
-  大台近月＝台指期 TX 一般時段、到期月份最近的月合約；結算漲跌＝同一合約和前一交易日結算價的差
+  大台近月＝台指期 TX 一般時段、到期月份最近的月合約（結算日當天跳過到期合約）；結算漲跌＝同一合約和前一交易日結算價的差
   法人淨未平倉＝期交所「三大法人－區分各期貨契約」多空未平倉口數淨額
   十大特定法人＝大額交易人未沖銷部位（TX+MTX/4+TMF/20）近月、特定法人前十大買方－賣方
   散戶多空比＝−(三大法人淨未平倉合計)÷全市場未平倉（所有月份）×100（小台 MTX、微台 TMF 各算）
@@ -167,6 +167,8 @@ def build(a, b, prev_settle=None):
         if d < a.isoformat():
             continue
         ms = sorted(k for k in TX[d] if k != "_oi")
+        if len(ms) > 1 and not TX[d][ms[0]][1]:
+            ms = ms[1:]          # 結算日：到期合約結算價是 0／空白，近月改用下一個月份（和 optoptoptopt 相同）
         if not ms:
             continue
         near, nxt = ms[0], (ms[1] if len(ms) > 1 else None)
