@@ -271,7 +271,7 @@ def market():
         if t and t[0]:
             hist.append([x["date"], t[0], round((x.get("tv") or 0) / 1e8)])
     res = {"date": d, "updated": dt.datetime.now(TZ).isoformat(timespec="seconds"), "otc": True, "src": "twse+tpex",
-           "histDays": len(hist), "instScope": "all", "index": index,
+           "histDays": len(hist), "instScope": "otc", "index": index,
            "breadth": {"up": sum(x["pct"] > 0 for x in st), "down": sum(x["pct"] < 0 for x in st), "flat": sum(x["pct"] == 0 for x in st)},
            "inst": inst, "taiex": hist, "sectors": sectors, "cols": cols, "rows": rows}
     json.dump(res, open(os.path.join(TW, "market.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
