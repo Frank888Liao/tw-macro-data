@@ -53,6 +53,9 @@ jobs:
           python scripts/fetch_tw.py merge bf/*
       - name: 加權指數（2003 起）
         run: python scripts/fetch_tw.py taiex 2003-12
+      - name: 補洞（週六補行交易日等）
+        continue-on-error: true
+        run: python scripts/fetch_tw.py fill 200
       - name: 最近 60 天全市場檔
         continue-on-error: true
         run: python scripts/fetch_tw.py recent 60

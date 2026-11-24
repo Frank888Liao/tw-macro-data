@@ -20,6 +20,7 @@
   python scripts/fetch_tw.py taiex 2003-12            重抓加權指數日 K（從指定年月到本月）
   python scripts/fetch_tw.py backfill 2015 OUTDIR     回補一整年的個股日 K 與融資（寫到 OUTDIR，之後用 merge 合併）
   python scripts/fetch_tw.py merge DIR...             把 backfill 的結果併進 data/tw/
+  python scripts/fetch_tw.py fill [40]                補洞：加權指數有、個股日 K 沒有的日子（例如週六補行交易日）
 """
 import csv, io, json, os, re, sys, time, datetime as dt, urllib.request
 
@@ -391,9 +392,10 @@ def taiex(start_ym):
 
 
 def weekdays(a, b):
+    """週一到週六（台股偶爾有週六補行交易日；沒開盤的日子抓下來是空的，會自動略過）。"""
     d = a
     while d <= b:
-        if d.weekday() < 5:
+        if d.weekday() < 6:
             yield d
         d += dt.timedelta(days=1)
 
@@ -455,6 +457,35 @@ def cmd_backfill(year, outdir):
     print("backfill", year, "完成：個股", sum(1 for r in px.values() if r), "檔，融資", len(mg), "天")
 
 
+def cmd_fill(maxn=40):
+    """補洞：加權指數有開盤、但個股日 K（以 2330 為準）沒有的日子，逐日補抓（最多 maxn 天，新的優先）。"""
+    pt, pp = os.path.join(ROOT, "taiex.csv"), os.path.join(ROOT, "prices", "2330.csv")
+    _, tx = read_csv(pt)
+    _, px = read_csv(pp)
+    if not tx or not px:
+        print("補洞：沒有 taiex.csv 或 2330.csv，略過"); return
+    have = {r[0] for r in px}
+    first = min(have)
+    miss = sorted((r[0] for r in tx if r[0] >= first and r[0] not in have), reverse=True)[:maxn]
+    print("補洞：缺", len(miss), "天", miss[:10])
+    cs = codes()
+    for ds in miss:
+        try:
+            day = fetch_day(dt.date.fromisoformat(ds), with_pe=False, with_otc_margin=False)
+        except Exception as e:  # noqa
+            print(ds, "失敗", e); continue
+        if not day:
+            print(ds, "沒有資料"); continue
+        for c in cs:
+            pr = price_row(ds, day["L"].get(c) or day["O"].get(c))
+            if pr:
+                upsert_csv(os.path.join(ROOT, "prices", c + ".csv"), PRICE_H, [pr])
+        mr = margin_row(day)
+        if mr:
+            upsert_csv(os.path.join(ROOT, "margin.csv"), MARGIN_H, [mr])
+        print(ds, "補上", flush=True)
+
+
 def cmd_merge(dirs):
     for d in dirs:
         for root, _, files in os.walk(d):
@@ -473,7 +504,7 @@ if __name__ == "__main__":
     if a[0] == "auto":            # 排程用：14:30 前抓前一個平日（補齊晚上才公布的融資），之後抓今天
         now = dt.datetime.now(TZ)
         d = now.date() if now.hour * 60 + now.minute >= 14 * 60 + 30 else now.date() - dt.timedelta(days=1)
-        while d.weekday() >= 5:
+        while d.weekday() == 6:      # 週日不開盤；週六可能是補行交易日，抓不到會顯示休市
             d -= dt.timedelta(days=1)
         print("目標日", d)
         cmd_daily(d)
@@ -487,5 +518,7 @@ if __name__ == "__main__":
         cmd_backfill(int(a[1]), a[2])
     elif a[0] == "merge":
         cmd_merge(a[1:])
+    elif a[0] == "fill":
+        cmd_fill(int(a[1]) if len(a) > 1 else 40)
     else:
         print(__doc__)

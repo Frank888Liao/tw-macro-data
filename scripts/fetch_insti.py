@@ -123,7 +123,7 @@ def main(argv):
     if argv and argv[0] == "backfill":
         n, days, d = int(argv[1]) if len(argv) > 1 else 10, [], today
         while len(days) < n:
-            if d.weekday() < 5:
+            if d.weekday() < 6:          # 含週六（補行交易日）
                 days.append(d)
             d -= dt.timedelta(days=1)
         days.reverse()
@@ -131,8 +131,8 @@ def main(argv):
         days = [dt.date.fromisoformat(argv[0]) if argv else today]
     ok = 0
     for d in days:
-        if d.weekday() >= 5:
-            print(d, "週末，略過"); continue
+        if d.weekday() == 6:
+            print(d, "週日，略過"); continue
         if os.path.exists(os.path.join(OUT, d.isoformat() + ".json")) and len(days) > 1:
             print(d, "已存在"); continue
         res, err = fetch(d)
