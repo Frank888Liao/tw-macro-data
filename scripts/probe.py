@@ -4,14 +4,15 @@ UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "_samples")
 os.makedirs(OUT, exist_ok=True)
 J = [
- ("taifex_insti_MXF.csv", "https://www.taifex.com.tw/cht/3/futContractsDateDown?queryStartDate=2026/11/18&queryEndDate=2026/11/24&commodityId=MXF"),
- ("taifex_insti_TMF.csv", "https://www.taifex.com.tw/cht/3/futContractsDateDown?queryStartDate=2026/11/18&queryEndDate=2026/11/24&commodityId=TMF"),
- ("taifex_MTX.csv", "https://www.taifex.com.tw/cht/3/futDataDown?down_type=1&commodity_id=MTX&queryStartDate=2026/11/18&queryEndDate=2026/11/24"),
- ("taifex_TMF.csv", "https://www.taifex.com.tw/cht/3/futDataDown?down_type=1&commodity_id=TMF&queryStartDate=2026/11/18&queryEndDate=2026/11/24"),
- ("taifex_opt_daily_20261120.csv", "https://www.taifex.com.tw/cht/3/optDataDown?down_type=1&commodity_id=TXO&queryStartDate=2026/11/20&queryEndDate=2026/11/20"),
- ("taifex_large_hist.csv", "https://www.taifex.com.tw/cht/3/largeTraderFutDown?queryStartDate=2026/11/18&queryEndDate=2026/11/20"),
- ("taifex_tx_2015.csv", "https://www.taifex.com.tw/cht/3/futDataDown?down_type=1&commodity_id=TX&queryStartDate=2015/01/05&queryEndDate=2015/01/30"),
- ("taifex_pc_2015.csv", "https://www.taifex.com.tw/cht/3/pcRatioDown?queryStartDate=2015/01/01&queryEndDate=2015/01/30"),
+ ("tpex_insti_20261124.json", "https://www.tpex.org.tw/www/zh-tw/insti/dailyTrade?type=Daily&sect=EW&date=2026/11/24&response=json"),
+ ("tpex_index_20261124.json", "https://www.tpex.org.tw/www/zh-tw/indexInfo/inx?date=2026/11/24&response=json"),
+ ("tpex_open_index.json", "https://www.tpex.org.tw/openapi/v1/tpex_index"),
+ ("twse_open_ann.json", "https://openapi.twse.com.tw/v1/opendata/t187ap04_L"),
+ ("tpex_open_ann.json", "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap04_O"),
+ ("twse_open_basic.json", "https://openapi.twse.com.tw/v1/opendata/t187ap03_L"),
+ ("tpex_open_basic.json", "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap03_O"),
+ ("twse_open_rev.json", "https://openapi.twse.com.tw/v1/opendata/t187ap05_L"),
+ ("tpex_open_rev.json", "https://www.tpex.org.tw/openapi/v1/mopsfin_t187ap05_O"),
 ]
 for name, u in J:
     try:
