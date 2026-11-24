@@ -1,4 +1,4 @@
-"""每天抓證交所資料，存成 data/insti/YYYY-MM-DD.json 與 data/insti/latest.json：
+"""每天抓證交所資料，存成 data/insti/YYYY-MM-DD.json、latest.json，以及 twse_flows.csv（最新一天，voidful 格式）：
   T86     三大法人買賣超日報（上市全部個股，股數）
   BFI82U  三大法人買賣金額統計（上市，元→億）
   MI_INDEX 漲跌證券數合計（上市官方漲跌家數、漲停跌停）
@@ -109,6 +109,12 @@ def save(res):
     for name in (res["date"] + ".json", "latest.json"):
         with open(os.path.join(OUT, name), "w", encoding="utf-8") as f:
             json.dump(res, f, ensure_ascii=False, separators=(",", ":"))
+    # 同一天的資料另存一份 voidful/tw-institutional-stocker 的格式（date,code,name,foreign_net,trust_net,dealer_net,market；股）
+    with open(os.path.join(OUT, "twse_flows.csv"), "w", encoding="utf-8", newline="") as f:
+        f.write("date,code,name,foreign_net,trust_net,dealer_net,market\n")
+        for c, v in sorted(res["rows"].items()):
+            g = lambda x: "" if x is None else str(x)
+            f.write(f"{res['date']},{c},{v[0].replace(',', ' ')},{g(v[1])},{g(v[2])},{g(v[3])},TWSE\n")
 
 
 def main(argv):
