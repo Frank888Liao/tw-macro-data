@@ -86,7 +86,8 @@ def from_zip(b):
     for n in names:
         if n.lower().endswith(".csv"):
             rows = parse_csv(zf.read(n))
-            if len(rows) > 1:
+            h0 = rows[0][0].strip().lower() if rows and rows[0] else ""
+            if len(rows) > 1 and ("date" in h0 or "日期" in h0 or "年月" in h0):   # 跳過 manifest／schema 說明檔
                 tabs.append((zname(n), rows))
     if not tabs:
         raise ValueError("zip 內沒有 CSV：" + ", ".join(zname(n) for n in names)[:200])
@@ -95,8 +96,9 @@ def from_zip(b):
         cols = [c.strip() for c in rows[0]]
         idx = []
         for i, c in enumerate(cols[1:], 1):
-            if c and c not in header:
-                header.append(c)
+            if c:
+                if c not in header:
+                    header.append(c)
                 idx.append((i, c))
         for r in rows[1:]:
             k = r[0].strip()
@@ -104,8 +106,9 @@ def from_zip(b):
                 data[k] = {}
                 order.append(k)
             for i, c in idx:
-                if i < len(r):
-                    data[k][c] = r[i]
+                if i < len(r) and r[i].strip() and not data[k].get(c):   # 同欄位在別張表有值就補上
+                    data[k][c] = r[i].strip()
+    order.sort()
     out = [[k] + [data[k].get(c, "") for c in header[1:]] for k in order]
     return header, out, [{"name": n, "header": rows[0][:30], "rows": len(rows) - 1} for n, rows in tabs]
 
