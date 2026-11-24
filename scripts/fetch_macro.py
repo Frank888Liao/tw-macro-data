@@ -72,15 +72,21 @@ def datagov(ds):
     dists = res.get("distribution") or []
     urls = [d.get("resourceDownloadUrl") for d in dists if str(d.get("resourceFormat", "")).upper() == "CSV"]
     urls += [d.get("resourceDownloadUrl") for d in dists if d.get("resourceDownloadUrl") not in urls]
-    last = None
+    errs = []
     for u in [x for x in urls if x]:
         try:
-            rows = [r for r in csv.reader(io.StringIO(decode(http(u)))) if any(c.strip() for c in r)]
+            b = http(u)
+            if b[:2] == b"PK":                      # zip 檔不是 CSV，跳過
+                errs.append(f"{u[-40:]}: zip")
+                continue
+            txt = decode(b).replace("\r\n", "\n").replace("\r", "\n")   # 舊式 \r 換行也能讀
+            rows = [r for r in csv.reader(io.StringIO(txt, newline="")) if any(c.strip() for c in r)]
             if len(rows) > 1:
                 return {"title": res.get("title"), "url": u, "header": rows[0], "rows": rows[1:]}
+            errs.append(f"{u[-40:]}: 只有 {len(rows)} 列")
         except Exception as e:  # noqa
-            last = e
-    raise ValueError(f"找不到可用的 CSV（{last}）")
+            errs.append(f"{u[-40:]}: {e}")
+    raise ValueError("找不到可用的 CSV（" + " | ".join(errs)[:400] + "）")
 
 
 def main():
@@ -108,7 +114,7 @@ def main():
             res["tw"][ds] = datagov(ds)
             print("data.gov.tw", ds, "OK", len(res["tw"][ds]["rows"]), "列")
         except Exception as e:  # noqa
-            res["errors"]["tw" + ds] = str(e)[:200]
+            res["errors"]["tw" + ds] = str(e)[:500]
             if ds in old.get("tw", {}):
                 res["tw"][ds] = old["tw"][ds]
             print("data.gov.tw", ds, "失敗：", e)
