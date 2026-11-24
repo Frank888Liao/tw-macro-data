@@ -9,7 +9,7 @@
                               L/O（上市／上櫃）{代號:[名稱,收盤,漲跌,成交股數,成交金額元,最高,最低,開盤]}
                               mg{代號:融資餘額張}（上市＋上櫃）、pe{代號:[本益比,殖利率,淨值比]}
                               br 漲跌家數、tv 上市總成交金額（元）、amt 融資金額仟元、lots 融資張、short 融券張
-  latest.csv                自選股快照（code,date,close,pct_change,prev_date,prev_close,volume,foreign_net,trust_net,dealer_net）
+  latest.csv                自選股快照（watch.txt 的代號）（code,date,close,pct_change,prev_date,prev_close,volume,foreign_net,trust_net,dealer_net）
 
 維持率（我們自己的定義）＝Σ(上市每檔融資張數×1000×收盤)÷上市融資金額（含 ETF）。
 
@@ -350,7 +350,9 @@ def write_latest():
     ta, tb = a["ix"].get("taiex"), b["ix"].get("taiex")
     if ta and tb and ta[0] and tb[0]:
         rows.append(["TAIEX", a["date"], fmt(ta[0]), round((ta[0] / tb[0] - 1) * 100, 2), b["date"], fmt(tb[0]), 0, "", "", ""])
-    for c in codes():
+    pw = os.path.join(ROOT, "watch.txt")
+    wl = [l.strip() for l in open(pw, encoding="utf-8") if l.strip() and not l.startswith("#")] if os.path.exists(pw) else codes()
+    for c in wl:
         x = a["L"].get(c) or a["O"].get(c)
         y = b["L"].get(c) or b["O"].get(c)
         if not x or not x[1]:
