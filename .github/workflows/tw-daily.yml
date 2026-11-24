@@ -34,6 +34,9 @@ jobs:
       - name: 行情、融資、本益比
         run: |
           if [ -n "${{ github.event.inputs.date }}" ]; then python scripts/fetch_tw.py daily "${{ github.event.inputs.date }}"; else python scripts/fetch_tw.py auto; fi
+      - name: 期貨籌碼與價差
+        continue-on-error: true
+        run: python scripts/fetch_fut.py
       - name: 補缺的日子
         continue-on-error: true
         run: python scripts/fetch_tw.py recent 10
@@ -41,5 +44,5 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A data/tw data/insti
+          git add -A data/tw data/insti data/fut
           git diff --cached --quiet || (git commit -qm "tw $(TZ=Asia/Taipei date +%F_%H%M)" && git pull --rebase -q && git push -q)
