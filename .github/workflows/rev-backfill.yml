@@ -1,0 +1,58 @@
+name: 回補月營收歷史（一次性）
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "年份（JSON 陣列）"
+        default: '["2014","2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025","2026"]'
+
+permissions:
+  contents: write
+
+jobs:
+  year:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix:
+        year: ${{ fromJSON(github.event.inputs.years) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          Y=${{ matrix.year }}; END="$Y-12"
+          [ "$Y" = "$(TZ=Asia/Taipei date +%Y)" ] && END=$(TZ=Asia/Taipei date -d "$(date +%Y-%m-15) -1 month" +%Y-%m)
+          python scripts/fetch_extra.py revenue-backfill $Y-01 $END out/$Y
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rev-${{ matrix.year }}
+          path: out/${{ matrix.year }}
+          retention-days: 7
+
+  merge:
+    needs: year
+    if: always()
+    runs-on: ubuntu-latest
+    concurrency:
+      group: tw-data
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          path: bf
+      - run: python scripts/fetch_extra.py merge-rev bf/*
+      - name: 存檔
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data/tw/revenue
+          git diff --cached --quiet || (git commit -qm "revenue backfill" && git pull --rebase -q && git push -q)

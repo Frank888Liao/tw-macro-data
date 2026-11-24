@@ -8,7 +8,7 @@
                               ix.taiex=[收盤,漲跌點,漲跌%]
                               L/O（上市／上櫃）{代號:[名稱,收盤,漲跌,成交股數,成交金額元,最高,最低,開盤]}
                               mg{代號:融資餘額張}（上市＋上櫃）、pe{代號:[本益比,殖利率,淨值比]}
-                              br 漲跌家數、amt 融資金額仟元、short 融資券
+                              br 漲跌家數、tv 上市總成交金額（元）、amt 融資金額仟元、lots 融資張、short 融券張
   latest.csv                自選股快照（code,date,close,pct_change,prev_date,prev_close,volume,foreign_net,trust_net,dealer_net）
 
 維持率（我們自己的定義）＝Σ(上市每檔融資張數×1000×收盤)÷上市融資金額（含 ETF）。
@@ -129,6 +129,12 @@ def twse_quotes(d):
                     ix = [num(r[1]), round((num(r[3]) or 0) * sign(r[2]), 2), num(r[4])]
             if ix:
                 break
+    tv = None
+    st = find(T, "大盤統計資訊")
+    if st:
+        for r in st.get("data") or []:
+            if "總計" in str(r[0]):
+                tv = num(r[1])
     br = {}
     b = find(T, "漲跌證券數合計")
     if b:
@@ -136,7 +142,7 @@ def twse_quotes(d):
             m = re.match(r"\s*([\d,]+)\s*(?:\(([\d,]+)\))?", str(r[2]))
             if m:
                 br[str(r[0]).strip()] = [int(m.group(1).replace(",", "")), int((m.group(2) or "0").replace(",", ""))]
-    return {"L": L, "taiex": ix, "br": br}
+    return {"L": L, "taiex": ix, "br": br, "tv": tv}
 
 
 def tpex_quotes(d):
@@ -230,7 +236,7 @@ def fetch_day(d, with_pe=True, with_otc_margin=True):
     q = twse_quotes(d)
     if not q:
         return None
-    day = {"date": d.isoformat(), "ix": {"taiex": q["taiex"]}, "L": q["L"], "br": q["br"]}
+    day = {"date": d.isoformat(), "ix": {"taiex": q["taiex"]}, "L": q["L"], "br": q["br"], "tv": q["tv"]}
     try:
         day["O"] = tpex_quotes(d)
     except Exception as e:  # noqa

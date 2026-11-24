@@ -34,6 +34,9 @@ jobs:
       - name: 行情、融資、本益比
         run: |
           if [ -n "${{ github.event.inputs.date }}" ]; then python scripts/fetch_tw.py daily "${{ github.event.inputs.date }}"; else python scripts/fetch_tw.py auto; fi
+      - name: 重大訊息、月營收、全市場快照
+        continue-on-error: true
+        run: python scripts/fetch_extra.py daily
       - name: 期貨籌碼與價差
         continue-on-error: true
         run: python scripts/fetch_fut.py
