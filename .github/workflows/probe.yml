@@ -4,9 +4,15 @@ on:
     inputs:
       date:
         default: "20261124"
+permissions:
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python scripts/probe.py "${{ github.event.inputs.date }}"
+      - run: python scripts/probe.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data/_samples && git commit -qm samples && git push
