@@ -5,7 +5,7 @@ on:
     inputs:
       start:
         description: "起始年月"
-        default: "2024-01"
+        default: "2026-07"
 
 permissions:
   contents: write
@@ -17,14 +17,14 @@ concurrency:
 jobs:
   fut:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: 加權指數（算價差用）
-        run: python scripts/fetch_tw.py taiex 2003-12
+        run: python scripts/fetch_tw.py taiex ${{ github.event.inputs.start }}
       - name: 期貨籌碼與價差
         run: python scripts/fetch_fut.py ${{ github.event.inputs.start }} $(TZ=Asia/Taipei date +%Y-%m)
       - name: 存檔
