@@ -1,0 +1,45 @@
+name: 每日抓台股資料
+
+on:
+  schedule:
+    - cron: "40 8 * * 1-5"    # 台北 16:40：收盤行情、三大法人
+    - cron: "15 14 * * 1-5"   # 台北 22:15：融資、本益比（晚上才公布）
+    - cron: "50 22 * * 0-4"   # 台北 06:50（隔天）：再補一次前一天
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "指定日期 YYYY-MM-DD（空白＝自動）"
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tw-data
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 三大法人
+        continue-on-error: true
+        run: |
+          if [ -n "${{ github.event.inputs.date }}" ]; then python scripts/fetch_insti.py "${{ github.event.inputs.date }}"; else python scripts/fetch_insti.py backfill 2; fi
+      - name: 行情、融資、本益比
+        run: |
+          if [ -n "${{ github.event.inputs.date }}" ]; then python scripts/fetch_tw.py daily "${{ github.event.inputs.date }}"; else python scripts/fetch_tw.py auto; fi
+      - name: 補缺的日子
+        continue-on-error: true
+        run: python scripts/fetch_tw.py recent 10
+      - name: 存檔
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data/tw data/insti
+          git diff --cached --quiet || (git commit -qm "tw $(TZ=Asia/Taipei date +%F_%H%M)" && git pull --rebase -q && git push -q)

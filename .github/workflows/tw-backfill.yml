@@ -1,0 +1,64 @@
+name: 回補台股歷史（一次性）
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "要回補的年份（JSON 陣列）"
+        default: '["2015","2016","2017","2018","2019","2020","2021","2022","2023","2024","2025","2026"]'
+
+permissions:
+  contents: write
+
+jobs:
+  year:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      max-parallel: 3
+      fail-fast: false
+      matrix:
+        year: ${{ fromJSON(github.event.inputs.years) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/fetch_tw.py backfill ${{ matrix.year }} out/${{ matrix.year }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bf-${{ matrix.year }}
+          path: out/${{ matrix.year }}
+          retention-days: 7
+
+  merge:
+    needs: year
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:
+      group: tw-data
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          path: bf
+      - name: 合併
+        run: |
+          ls bf
+          python scripts/fetch_tw.py merge bf/*
+      - name: 加權指數（2003 起）
+        run: python scripts/fetch_tw.py taiex 2003-12
+      - name: 最近 60 天全市場檔
+        continue-on-error: true
+        run: python scripts/fetch_tw.py recent 60
+      - name: 存檔
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data/tw
+          git diff --cached --quiet || (git commit -qm "tw backfill" && git pull --rebase -q && git push -q)
